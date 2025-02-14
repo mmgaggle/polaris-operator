@@ -1,8 +1,3 @@
-
-Build packages
-Build container images
-Build operator
-
 # Introduction
 
 We can start with a prototype operator based on helm scripts that we use with [kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) to convert into an operator.
