@@ -15,6 +15,154 @@ The purpose of the Polaris operator custom resource definitions is to provide en
 Initially we will limit the custom resource to the set that are managed through the Polaris management API, which notably excludes namespaces and tables. This should be acceptable because these can be created through SQL commands using a query engine that is interacting with the catalog.
 The prefix for the management API is /api/management/v1, and by default Polaris will listen on port 8181.
 
+## Polaris
+
+The Polaris Catalog CRD will be used to create a deployment and services and will be a dependency of all other resources because those resources require calls be made against the management service endpoint.
+
+### Deployments
+
+Polaris API deployment
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: polaris-api-server
+  labels:
+    app: polaris
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: polaris
+  template:
+    metadata:
+      labels:
+        app: polaris
+    spec:
+      containers:
+      - name: polaris
+        image: polaris:tag
+        ports:
+        - containerPort: 8181
+       livenessProbe:
+         httpGet:
+           path: /q/health
+           port: 8182
+         initialDelaySeconds: 3
+         periodSeconds: 5
+       readinessProbe:
+         httpGet:
+           path: /q/health
+           port: 8182
+         initialDelaySeconds: 3
+         periodSeconds: 5
+         
+```
+
+Polaris API service
+
+```
+# ClusterIP Service (for internal access)
+apiVersion: v1
+kind: Service
+metadata:
+  name: polaris-api-server
+spec:
+  type: ClusterIP
+  selector:
+    app: polaris-api-server
+  ports:
+    - port: 8181
+      targetPort: 8181
+```
+
+Polaris DB secret
+
+```
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-credentials
+type: Opaque
+data:
+  password: <insert base64 encoded secret>
+```
+
+Polaris DB deployment
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: polaris-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: poalris-db
+  template:
+    metadata:
+      labels:
+        app: polaris-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:14
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                name: polaris-db-credentials
+                key: password
+            - name: POSTGRES_DB
+              value: polaris
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: polaris-db-storage
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: polaris-db-storage
+          persistentVolumeClaim:
+            claimName: polaris-db-pvc
+```
+
+Polaris DB service
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: polaris-db
+spec:
+  type: ClusterIP
+  selector:
+    app: polaris-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+```
+
+Additional Polaris configuration
+
+Should include provisions for federating with a OIDC provider to supply principals. This may be through a properties file that configures the Spring OAuth2ResrouceServer (application.properties/yaml). This might be projected into the Polaris container with information sourced from a config map.
+
+```
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://your-oidc-provider/auth/realms/your-realm
+          jwk-set-uri: https://your-oidc-provider/auth/realms/your-realm/protocol/openid-connect/certs
+```
+
+Should configure EclipseLink for metastore persistence with the PostgreSQL container
+
+https://polaris.io/metastores.md
+
 ## Principal
 
 The operator can create a principal by sending an OpenAPI PUT request to
@@ -93,35 +241,4 @@ The operator can read, update, or delete a catalog role by sending a OpenAPI PUT
 ## CatalogRoleGrant
 
 Catalog role grants establish a relationship between a catalog role and a catalog and are organized as an array.
-
-## PolarisCatalog
-
-The Polaris Catalog CRD will be used to create a deployment and services and will be a dependency of all other resources because those resources require calls be made against the management service endpoint.
-Deployment
-•	Pod should include a Polaris catalog container with the following environmental variables
-o	AWS_ACCESS_KEY_ID
-o	AWS_SECRET_ACCESS_KEY
-o	AWS_REGION
-o	AWS_ENDPOINT_URL
-•	Pod will direct :8181 to :8181 for the Polaris container
-•	Pod health checks can hit http://localhost:8182/q/health
-•	Pod should include a PostgreSQL container that includes a PVC against a configurable storage class, which in most cases we will want to be RBD.
-Should include provisions for federating with a OIDC provider to supply principals. This may be through a properties file that configures the Spring OAuth2ResrouceServer (application.properties/yaml). This might be projected into the Polaris container with information sourced from a config map.
-spring:
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: https://your-oidc-provider/auth/realms/your-realm
-          jwk-set-uri: https://your-oidc-provider/auth/realms/your-realm/protocol/openid-connect/certs
-
-Should configure EclipseLink for metastore persistence with the PostgreSQL container
-
-https://polaris.io/metastores.md
-Service
-
-
-
-
-
 
