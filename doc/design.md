@@ -17,17 +17,16 @@ https://polaris.apache.org/in-dev/unreleased/quickstart/
 
 The core design features deploying polaris-api and polaris-db pods, the former is stateless and the latter is the persistence layer for the Polaris metastore.
 
-To get started, we can create a toolbox pod that can be used to run administrative Polaris CLI commands.
+To get started, we can create a toolbox pod that can be used to run administrative [Polaris CLI commands](https://polaris.apache.org/in-dev/unreleased/command-line-interface/).
 
-https://polaris.apache.org/in-dev/unreleased/command-line-interface/
 
 Eventually, we'll want to have custom resources for each command to facilitate declarative configuration of an access control model. Ideally, the operator would monitor for the creation of Polaris CRs and in response make API calls against the Polaris management API.
 
-The Polaris Management API follows an OpenAPI specification:
+The Polaris Management API:
 
-https://github.com/apache/polaris/blob/main/spec/polaris-management-service.yml
-
-The Polaris Management API by default will be `:8181` and the prefix is `/api/management/v1`.
+* follows an [OpenAPI specification](https://github.com/apache/polaris/blob/main/spec/polaris-management-service.yml):
+* Listens on `:8181`
+* Uses a prefix `/api/management/v1`
 
 # Custom resource definitions
 
