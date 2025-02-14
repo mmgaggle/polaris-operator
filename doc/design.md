@@ -32,7 +32,7 @@ The Polaris Management API:
 
 The purpose of the Polaris operator custom resource definitions is to provide end users with a declarative way of constructing a set of Polaris resources to provide comprehensive access control scheme for a Data Lakehouse. An example construction is illustrated below:
  
-Initially we will limit the custom resources to the set that are managed through the Polaris management API, which notably excludes namespaces and tables. This should be acceptable because these can be created through SQL commands using a query engine that is interacting with the catalog. For example, tables can be created a la:
+Initially we will limit the custom resources to the set that are managed through the Polaris management API, which notably excludes namespaces and tables. This should be acceptable because these can be created through SQL commands using a query engine that is interacting with the catalog. For example, namespaces and tables can be created a la:
 
 ```
 sql
@@ -44,6 +44,10 @@ CREATE TABLE foo.bar;
 ```
 
 ## Polaris
+
+A precondition for the Polaris catalog will be to setup the requisite IAM resources with Ceph. We can start with job that runs the following terraform:
+
+https://github.com/mmgaggle/polaris-ceph-demo/blob/main/ceph-resources.tf
 
 The Polaris Catalog CRD will be used to create a deployment and services and will be a dependency of all other resources because those resources require calls be made against the management service endpoint.
 
