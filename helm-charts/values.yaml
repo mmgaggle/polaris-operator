@@ -1,0 +1,17 @@
+# values.yaml
+operator:
+  image:
+    repository: quay.io/polaris-operator
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+
+  rbac:
+    create: true
