@@ -1,0 +1,36 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: polaris-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: poalris-db
+  template:
+    metadata:
+      labels:
+        app: polaris-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:14
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                name: polaris-db-credentials
+                key: password
+            - name: POSTGRES_DB
+              value: polaris
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: polaris-db-storage
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: polaris-db-storage
+          persistentVolumeClaim:
+            claimName: polaris-db-pvc

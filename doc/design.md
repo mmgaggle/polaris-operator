@@ -5,145 +5,53 @@ Build operator
 
 # Introduction
 
-The Polaris operator should be created using the Operator SDK. 
+The Polaris operator should be created using the Operator SDK. We can start with a prototype based on helm scripts and use the kubebuilder to turn it into an operator.
+
+# Building
+
+We will need to create BuildConfig jobs that
+
+* Build any packages that are not included in UBI.
+* Build container images using RPMs
+
+Instructions for building Polaris can be found here:
+
+https://polaris.apache.org/in-dev/unreleased/quickstart/
+
+# Architecture
+
+The core design features deploying polaris-api and polaris-db pods, the former is stateless and the latter is the persistence layer for the Polaris metastore.
+
+To get started, we can create a toolbox pod that can be used to run administrative Polaris CLI commands.
+
+https://polaris.apache.org/in-dev/unreleased/command-line-interface/
+
+Eventually, we'll want to have custom resources for each command to facilitate declarative configuration of an access control model. Ideally, the operator would monitor for the creation of Polaris CRs and in response make API calls against the Polaris management API.
+
+The Polaris Management API follows an OpenAPI specification:
+
+https://github.com/apache/polaris/blob/main/spec/polaris-management-service.yml
+
+The Polaris Management API by default will be `:8181` and the prefix is `/api/management/v1`.
 
 # Custom resource definitions
 
 The purpose of the Polaris operator custom resource definitions is to provide end users with a declarative way of constructing a set of Polaris resources to provide comprehensive access control scheme for a Data Lakehouse. An example construction is illustrated below:
  
- 
-Initially we will limit the custom resource to the set that are managed through the Polaris management API, which notably excludes namespaces and tables. This should be acceptable because these can be created through SQL commands using a query engine that is interacting with the catalog.
-The prefix for the management API is /api/management/v1, and by default Polaris will listen on port 8181.
+Initially we will limit the custom resources to the set that are managed through the Polaris management API, which notably excludes namespaces and tables. This should be acceptable because these can be created through SQL commands using a query engine that is interacting with the catalog. For example, tables can be created a la:
+
+```
+sql
+CREATE NS foo;
+```
+```
+sql
+CREATE TABLE foo.bar;
+```
 
 ## Polaris
 
 The Polaris Catalog CRD will be used to create a deployment and services and will be a dependency of all other resources because those resources require calls be made against the management service endpoint.
-
-### Deployments
-
-Polaris API deployment
-
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: polaris-api-server
-  labels:
-    app: polaris
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: polaris
-  template:
-    metadata:
-      labels:
-        app: polaris
-    spec:
-      containers:
-      - name: polaris
-        image: polaris:tag
-        ports:
-        - containerPort: 8181
-       livenessProbe:
-         httpGet:
-           path: /q/health
-           port: 8182
-         initialDelaySeconds: 3
-         periodSeconds: 5
-       readinessProbe:
-         httpGet:
-           path: /q/health
-           port: 8182
-         initialDelaySeconds: 3
-         periodSeconds: 5
-         
-```
-
-Polaris API service
-
-```
-# ClusterIP Service (for internal access)
-apiVersion: v1
-kind: Service
-metadata:
-  name: polaris-api-server
-spec:
-  type: ClusterIP
-  selector:
-    app: polaris-api-server
-  ports:
-    - port: 8181
-      targetPort: 8181
-```
-
-Polaris DB secret
-
-```
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-credentials
-type: Opaque
-data:
-  password: <insert base64 encoded secret>
-```
-
-Polaris DB deployment
-
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: polaris-db
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: poalris-db
-  template:
-    metadata:
-      labels:
-        app: polaris-db
-    spec:
-      containers:
-        - name: postgres
-          image: postgres:14
-          env:
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                name: polaris-db-credentials
-                key: password
-            - name: POSTGRES_DB
-              value: polaris
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
-          ports:
-            - containerPort: 5432
-          volumeMounts:
-            - name: polaris-db-storage
-              mountPath: /var/lib/postgresql/data
-      volumes:
-        - name: polaris-db-storage
-          persistentVolumeClaim:
-            claimName: polaris-db-pvc
-```
-
-Polaris DB service
-
-```
-apiVersion: v1
-kind: Service
-metadata:
-  name: polaris-db
-spec:
-  type: ClusterIP
-  selector:
-    app: polaris-db
-  ports:
-    - port: 5432
-      targetPort: 5432
-```
 
 Additional Polaris configuration
 
@@ -182,13 +90,6 @@ The operator can create a principal role by sending an OpenAPI PUT request to
 The operator can read, update, or delete a principal role by sending a OpenAPI PUT request to
 
 `/principal-roles/{principalRoleName}`
-
-## PrincipalRoleGrant
-
-Principal role grants establish a relationship between a principal role and a catalog role.
-
-`/principal-roles/{principalRoleName}/catalog-roles/{catalogName}`
-`/principal-roles/{principalRoleName}/catalog-roles/{catalogName}/{catalogRoleName}`
 
 ## Catalog
 
@@ -237,6 +138,13 @@ The operator can create a catalog role by sending an OpenAPI PUT request to
 The operator can read, update, or delete a catalog role by sending a OpenAPI PUT request to
 
 `/catalogs/{catalogName}/catalog-roles/{catalogRoleName}`
+
+## PrincipalRoleGrant
+
+Principal role grants establish a relationship between a principal role and a catalog role.
+
+`/principal-roles/{principalRoleName}/catalog-roles/{catalogName}`
+`/principal-roles/{principalRoleName}/catalog-roles/{catalogName}/{catalogRoleName}`
 
 ## CatalogRoleGrant
 
