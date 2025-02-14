@@ -5,7 +5,7 @@ Build operator
 
 # Introduction
 
-The Polaris operator should be created using the Operator SDK. We can start with a prototype based on helm scripts and use the kubebuilder to turn it into an operator.
+We can start with a prototype operator based on helm scripts that we use with [kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) to convert into an operator.
 
 # Building
 
